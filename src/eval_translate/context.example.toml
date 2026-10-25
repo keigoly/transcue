@@ -1,0 +1,17 @@
+# 訳に渡す文脈の見本(評価の「文脈あり」の条件で使う)。context.toml に写して書き換える。
+# ここに書いた内容は評価のときに Claude API(Anthropic)へ送られる。
+
+[speaker]
+profile = """
+(話し手の仕事・相手・話し方の好みを数行で)
+"""
+
+# 評価の組ごとの会議の目的。bench = ベンチの会話、phrases = よく使う言い回し
+[meeting.bench]
+purpose = "(会議の目的を一行で)"
+
+[meeting.phrases]
+purpose = "(会議の目的を一行で)"
+
+# 好みの英語("日本語" = "英語")
+[glossary]

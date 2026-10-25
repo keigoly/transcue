@@ -1,0 +1,15 @@
+anthropic==2.3.0
+huggingface-hub==1.24.0
+kokoro-onnx==0.5.0
+misaki==0.9.4
+mlx-audio==0.4.5
+mlx-lm==0.31.3
+mlx==0.32.0
+numba==0.66.0
+numpy==2.4.6
+sentencepiece==0.2.2
+sounddevice==0.5.5
+soundfile==0.14.0
+tokenizers==0.22.2
+torch==2.13.0
+transformers==5.12.1

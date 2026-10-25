@@ -1,0 +1,125 @@
+# TransCue の設定。spikes/setup_env.sh がこの見本を src/config.toml に写す(src/config.toml は git に入れない)。
+# 機器の名前は部分一致(大文字小文字は無視)。空 = macOS の既定の機器。
+
+[audio]
+speaker_device = ""                 # 英語の読み上げを自分でも聞く先([monitor] device が空のとき)
+virtual_mic    = "BlackHole 2ch"    # 会議アプリのマイクに選ぶ仮想デバイス。英語の読み上げと地声をここへ出す
+
+[stt]
+lang       = "ja-JP"                       # 自分の言葉(送信)
+helper_bin = "src/stt_helper/stt-helper"   # 音声認識(SpeechAnalyzer)。./build_all.sh で作る
+
+[receive]
+# 受信: 会議の音声 → 英語の認識 → 日本語の字幕
+lang       = "en-US"
+helper_bin = "src/tap_helper/tap-helper"   # 音声の取り込み(Core Audio のタップ)
+# "global_exclude_sender" = システム全体の音から自分の読み上げだけを除いて取り込む(推奨)。
+# "process" = target のプロセスだけを取り込む(Zoom では会議の音が取れないことがあった)。
+tap_mode   = "global_exclude_sender"
+target     = ["--name", "zoom"]            # tap_mode = "process" のときだけ使う
+src_lang   = "English"
+dst_lang   = "Japanese"
+window_bin = "src/subtitle_window/subtitle-window"   # 字幕の窓
+# 節の区切り(受信用。[segmenter] を上書きする)。英語は文末で認識が確定するので、待ちも節も長めにする
+pause_finalize_ms            = 1500
+pause_finalize_sentence_ms   = 1500
+pause_finalize_incomplete_ms = 1500
+carry_incomplete_tail        = false
+carry_max_wait_ms            = 0
+max_clause_chars             = 120
+
+[segmenter]
+# 送信: 日本語を節に区切って訳に回す。待ち時間(ms)は末尾の形で変える
+pause_finalize_sentence_ms   = 400    # 末尾が句点など(。.!?)
+pause_finalize_ms            = 1300   # 末尾が言い切り
+pause_finalize_incomplete_ms = 2000   # 末尾が助詞・語の途中
+finalize_poll_ms             = 100
+carry_incomplete_tail        = true   # 文の途中の切れ端は、次の節の頭に回す
+carry_max_wait_ms            = 3000   # 回した切れ端は、この間 話が続かなければ単独で訳す(0 = 次の確定まで待つ)
+max_clause_chars             = 60
+backchannel = ["はい", "ええ", "うん", "うんうん", "なるほど", "そうですね", "あー", "えっと"]   # 相づちは訳さない
+
+[translate]
+engine            = "plamo"
+model             = "mlx-community/plamo-2-translate"   # Mac の中の翻訳モデル(約 5 GB。README の手順で落とす)
+max_tokens        = 128
+early_stop_marker = "<|plamo:op|>"
+keepwarm_idle_s   = 0          # 訳がこの秒数無いと空の翻訳で温めておく(0 = しない。下の wake_on_speech を使う)
+keepwarm_check_s  = 4
+mode              = "server"   # "server" = 送受信で翻訳モデルを 1 つだけ載せて共有する。"local" = それぞれが持つ
+server_sock       = "~/.transcue/translator.sock"
+server_connect_timeout_s = 600
+wire_weights      = true       # モデルの重みをメモリに固定する(長い無音のあとも速い)
+wake_on_speech    = true       # 話し始めで GPU を起こす
+recv_engine       = "plamo"    # 字幕の訳。Claude で訳すなら "claude"(README の「クラウド翻訳」)
+send_engine       = "plamo"    # 英語の訳。同上
+
+[claude]
+# クラウド翻訳(Claude)。使うかどうかは [translate] の recv_engine / send_engine と、TransCue の画面の「クラウド翻訳」。
+# つながらない・遅い・断られたときは、その節だけ PLaMo で訳す。
+recv_model              = "claude-haiku-5-5"    # 字幕(英 → 日)
+send_model              = "claude-sonnet-5-5"   # 英語(日 → 英)
+send_backup_model       = "claude-haiku-5-5"    # 英語は両方に同時に頼み、Sonnet が出遅れたらこちらの訳を使う
+api_key_file            = "~/.transcue/anthropic_api_key"   # 1 行・本人だけが読める権限に。無ければ環境変数 ANTHROPIC_API_KEY
+cloud_switch_file       = "~/.transcue/cloud.json"          # 画面の「クラウド翻訳」の ON/OFF(発言ごとに読む)
+max_tokens              = 256
+first_token_timeout_ms  = 2000   # 訳が出始めるまでの上限。超えたらその節は PLaMo
+total_timeout_ms        = 5000   # 訳が出そろうまでの上限(同上)
+cooldown_after_failures = 3      # 続けてこの回数失敗したら
+cooldown_s              = 60     # この秒数は PLaMo だけで訳す
+
+[tts]
+engine        = "kokoro-mlx"
+model_id      = "prince-canuma/Kokoro-82M"   # 英語の読み上げ(README の手順で落とす)
+voice         = "af_heart"                   # 米国英語・女性
+speed         = 1.0
+lang_code     = "a"                          # a = 米国英語
+sample_rate   = 24000
+output_device = ""                           # 会議中は [audio] virtual_mic へ出す。これは単体の試験用
+
+[metrics]
+log_dir     = "logs"     # 各フェーズの所要 ms(JSONL)
+echo_stderr = true
+
+[transcript]
+enabled = true           # 会議の発言と訳を logs/transcript_<日付>.jsonl に残す(外へは送らない)
+dir     = "logs"
+
+[hotkey]
+helper_bin = "src/hotkey_helper/hotkey-helper"
+panel_bin  = "src/control_panel/control-panel"   # 英語ボタン(クリックか ⌃⌥P で ON/OFF)
+combo      = "⌃⌥P"                               # 表示用(キーは固定)
+panel_only_app       = "us.zoom.xos,com.google.Chrome"   # このどれかが前面のときだけボタンを出す(空 = 常に出す)。⌃⌥P はいつでも効く
+panel_meeting_titles = "ミーティング,Meeting,Meet"        # さらに窓の題名がこれを含むときだけ(Zoom の会議の窓・Meet のタブ)
+
+[watcher]
+# 会議を検知して run_meeting.command を起動し、退出で止める(install_watcher.command で常駐させる)
+signal         = "cpthost+virtual_mic"   # cpthost = Zoom の会議・virtual_mic = BlackHole をマイクにしているアプリ(Meet など)
+poll_s         = 2.0
+debounce_join  = 2       # 続けてこの回数 検知したら起動
+debounce_leave = 3       # 続けてこの回数 検知しなければ停止
+launcher       = "run_meeting.command"
+max_relaunch   = 1       # 会議中に落ちたときの再起動の上限
+bypass_when_disabled = true   # 画面で「無効」のときは地声だけを流す(会議アプリのマイクは BlackHole のままなので)
+
+[resmon]
+enabled    = true        # 会議中のメモリ・CPU・電力を logs/resmon_*.jsonl に残す
+interval_s = 5.0
+
+[gui]
+app          = "src/app/TransCue.app"
+open_at_boot = true      # ログイン時に TransCue の画面を開く(前面には出さない)
+
+[passthrough]
+# 英語ボタンが OFF の間は、マイクの地声を BlackHole へ流す
+enabled      = true
+gain         = 1.0
+samplerate   = 48000
+input_device = ""        # 空 = 既定の入力(ヘッドホンのマイクなど)
+blocksize    = 4096
+
+[monitor]
+# 相手へ送る英語の読み上げを、自分のヘッドホンにも小さく流す(いま送っていることが分かる)
+enabled = true
+device  = ""             # 空 = [audio] speaker_device(それも空なら既定の出力)
+gain    = 0.25

@@ -1,0 +1,37 @@
+# 手元だけ(内部の運用メモ・個人の設定・記録)
+CLAUDE.local.md
+RESUME.md
+PLAN_*.md
+ARCHITECTURE.md
+DEVELOPMENT.md
+**/DEVELOPMENT.md
+docs/history/
+src/config.toml
+src/eval_translate/context.toml
+logs/
+_backups/
+.env*
+*.pem
+*.key
+
+# 大きいもの・作り直せるもの
+models-cache/
+spikes/.venv*/
+spikes/models/
+src/bench/audio/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Swift のビルド結果(build_all.sh で作る)
+*.app/
+src/app/transcue
+src/stt_helper/stt-helper
+src/tap_helper/tap-helper
+src/tap_helper/audio-procs
+src/tap_helper/tapmeter
+src/control_panel/control-panel
+src/subtitle_window/subtitle-window
+src/hotkey_helper/hotkey-helper
+src/transcribe_file/transcribe-file
+src/audio_device/set-input
